@@ -1,0 +1,79 @@
+# Baut NOVA Schrottpresse bei jedem Push als VST3, Audio Unit und Standalone-App für macOS
+# (Universal: Apple Silicon und Intel). Das Ergebnis steht unter "Actions" zum Download.
+# Der Projektordner wird automatisch gefunden, er darf auch in einem Unterordner liegen.
+
+name: macOS-Build
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    name: VST3 + AU + App (Universal)
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Code holen
+        uses: actions/checkout@v4
+
+      - name: Projektordner finden
+        run: |
+          CM=$(grep -rl --include=CMakeLists.txt "juce_add_plugin(Schrottpresse" . | grep -v "/build/" | head -1 || true)
+          if [ -z "$CM" ]; then
+            echo "::error::CMakeLists.txt von Schrottpresse nicht gefunden. Bitte den kompletten Projektordner ins Repository laden."
+            exit 1
+          fi
+          PROJ=$(dirname "$CM")
+          echo "Projektordner: $PROJ"
+          echo "PROJ=$PROJ" >> "$GITHUB_ENV"
+
+      - name: Konfigurieren (lädt JUCE automatisch)
+        working-directory: ${{ env.PROJ }}
+        run: >
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+
+      - name: Bauen
+        working-directory: ${{ env.PROJ }}
+        # -k: bei einem Fehler weiterbauen, damit alle Fehler auf einmal im Log stehen
+        run: cmake --build build --config Release --parallel 4 -- -k
+
+      - name: Selbsttest
+        working-directory: ${{ env.PROJ }}
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Ad-hoc signieren
+        working-directory: ${{ env.PROJ }}
+        run: |
+          ART=build/Schrottpresse_artefacts/Release
+          codesign --force --deep --sign - "$ART/VST3/Schrottpresse.vst3"
+          codesign --force --deep --sign - "$ART/AU/Schrottpresse.component"
+          codesign --force --deep --sign - "$ART/Standalone/Schrottpresse.app"
+
+      - name: Paket schnüren
+        working-directory: ${{ env.PROJ }}
+        run: |
+          ART=build/Schrottpresse_artefacts/Release
+          mkdir -p dist/Schrottpresse
+          cp -R "$ART/VST3/Schrottpresse.vst3" "$ART/AU/Schrottpresse.component" "$ART/Standalone/Schrottpresse.app" dist/Schrottpresse/
+          cp scripts/install-macos.sh dist/Schrottpresse/Installieren.command
+          chmod +x dist/Schrottpresse/Installieren.command
+          cp scripts/LIESMICH.txt dist/Schrottpresse/
+          cp -R build/render dist/Schrottpresse/Klangbeispiele
+          cd dist && ditto -c -k --keepParent Schrottpresse NOVA-Schrottpresse-macOS.zip
+
+      - name: Hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: NOVA-Schrottpresse-macOS
+          path: ${{ env.PROJ }}/dist/NOVA-Schrottpresse-macOS.zip
+          retention-days: 30
