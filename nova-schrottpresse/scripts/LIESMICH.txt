@@ -1,0 +1,24 @@
+NOVA Schrottpresse für macOS
+============================
+
+Inhalt
+  Schrottpresse.vst3        Plugin für Ableton, Bitwig, Reaper, Cubase ...
+  Schrottpresse.component   Audio Unit für Logic, GarageBand, Ableton
+  Schrottpresse.app         eigenständige App (Eingang über dein Audio-Interface)
+  Klangbeispiele            ein Schranz-Loop durch alle 31 Presets als WAV
+
+Installieren
+  1. Terminal öffnen (Programme > Dienstprogramme > Terminal)
+  2. Eintippen (Pfad anpassen, falls der Ordner woanders liegt):
+
+       bash ~/Downloads/Schrottpresse/Installieren.command
+
+  3. In Ableton: Einstellungen > Plug-ins
+       - VST3-Systemordner und Audio Units einschalten
+       - "Neu scannen"
+     Die Schrottpresse steht dann im Browser unter Plug-ins > NOVA.
+
+Warum das Skript?
+  Das Plugin ist nicht bei Apple signiert. Ohne das Skript blockiert macOS
+  heruntergeladene Plugins. Das Skript entfernt nur diese Download-Sperre
+  und kopiert die Dateien in ~/Library/Audio/Plug-Ins.
